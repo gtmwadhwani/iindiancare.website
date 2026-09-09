@@ -2,6 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '2163019057767376');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=2163019057767376&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Indian Care – Natural Skincare</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -350,6 +367,15 @@ let curP=null,qty=1;
 function openOrder(k){
   curP=k;qty=1;
   const p=PRODS[k];
+  // Meta Pixel ViewContent event
+  if(typeof fbq !== 'undefined'){
+    fbq('track', 'ViewContent', {
+      content_name: p.name,
+      content_type: 'product',
+      value: p.price,
+      currency: 'INR'
+    });
+  }
   document.getElementById('mTtl').textContent='Order: '+p.name;
   document.getElementById('mNm').textContent=p.name+' ('+p.size+')';
   document.getElementById('mImg').src=PIMGS[k];
@@ -383,6 +409,16 @@ function validate(){
 }
 function placeOrder(){
   if(!validate())return;
+  // Meta Pixel InitiateCheckout
+  if(typeof fbq !== 'undefined'){
+    const p=PRODS[curP];
+    fbq('track','InitiateCheckout',{
+      value: p.price*qty,
+      currency:'INR',
+      content_name: p.name,
+      num_items: qty
+    });
+  }
   const btn=document.getElementById('placeBtn');
   btn.disabled=true;btn.textContent='Placing order...';
   const p=PRODS[curP];
@@ -413,6 +449,22 @@ function placeOrder(){
   }
   setTimeout(()=>{
     btn.disabled=false;btn.textContent='✓ Confirm Order (COD)';
+    // ── Meta Pixel Purchase Event ──
+    if(typeof fbq !== 'undefined'){
+      fbq('track', 'Purchase', {
+        value: p.price * qty,
+        currency: 'INR',
+        content_name: p.name,
+        content_type: 'product',
+        num_items: qty,
+        order_id: oid
+      });
+      fbq('track', 'InitiateCheckout', {
+        value: p.price * qty,
+        currency: 'INR',
+        content_name: p.name
+      });
+    }
     document.getElementById('sOid').textContent=oid;
     document.getElementById('sSumm').innerHTML=
       '<strong>Product:</strong> '+p.name+' ('+p.size+') × '+qty+'<br/>'+
