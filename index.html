@@ -193,6 +193,8 @@ footer{background:#1a0e05;padding:46px 68px 26px;}
   .mhdr,.mform{padding-left:20px;padding-right:20px;}.mprod,.mqty{margin-left:20px;margin-right:20px;}
 }
 </style>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script type="text/javascript">emailjs.init("eg4MJn4Df16JWnTMj");</script>
 </head>
 <body>
 <nav>
@@ -407,6 +409,30 @@ function validate(){
   if(!ok&&document.getElementById('fp').value.trim().length===0)toast('⚠️ Sabhi required fields fill karein');
   return ok;
 }
+
+// ── EmailJS: Send confirmation email to customer ──
+function sendConfirmationEmail(o, p) {
+  if(!o.email) return; // skip if no email provided
+  const templateParams = {
+    to_email:    o.email,
+    to_name:     o.name,
+    order_id:    o.id,
+    order_date:  o.date,
+    product:     o.product,
+    product_size: o.size,
+    quantity:    o.qty,
+    total:       '₹' + (o.total).toLocaleString('en-IN'),
+    address:     o.address + ', ' + o.city + ', ' + o.state + ' – ' + o.pin,
+    phone:       o.phone,
+    payment:     'Cash on Delivery (COD)',
+    from_name:   'Indian Care',
+    reply_to:    'support@indiancare.in'
+  };
+  emailjs.send('service_f5k836o', 'template_capqy0o', templateParams)
+    .then(() => console.log('✅ Email sent to customer'))
+    .catch(err => console.log('Email error:', err));
+}
+
 function placeOrder(){
   if(!validate())return;
   // Meta Pixel InitiateCheckout
@@ -449,6 +475,8 @@ function placeOrder(){
   }
   setTimeout(()=>{
     btn.disabled=false;btn.textContent='✓ Confirm Order (COD)';
+    // ── Send Email to Customer ──
+    sendConfirmationEmail(o, p);
     // ── Meta Pixel Purchase Event ──
     if(typeof fbq !== 'undefined'){
       fbq('track', 'Purchase', {
