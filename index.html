@@ -414,7 +414,7 @@ function validate(){
 function sendConfirmationEmail(o, p) {
   if(!o.email) return; // skip if no email provided
   const templateParams = {
-    to_email:    o.email,
+    email:       o.email,
     to_name:     o.name,
     order_id:    o.id,
     order_date:  o.date,
