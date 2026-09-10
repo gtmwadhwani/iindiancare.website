@@ -492,31 +492,39 @@ function placeOrder(){
     localStorage.removeItem('ic_orders');
     localStorage.setItem('ic_orders',JSON.stringify([o]));
   }
+  // ── Capture values for closure ──
+  const _qty = qty;
+  const _curP = curP;
+  const _pname = p.name;
+  const _ptotal = p.price * qty;
+
   setTimeout(()=>{
     btn.disabled=false;btn.textContent='✓ Confirm Order (COD)';
+    // ── Meta Pixel Purchase Event ──
+    try{
+      if(typeof fbq !== 'undefined'){
+        fbq('track', 'Purchase', {
+          value: _ptotal,
+          currency: 'INR',
+          content_name: _pname,
+          content_ids: [_curP],
+          content_type: 'product',
+          num_items: _qty,
+          order_id: oid
+        });
+        fbq('trackCustom', 'CODOrderPlaced', {
+          order_id: oid,
+          product: _pname,
+          value: _ptotal,
+          currency: 'INR',
+          city: o.city,
+          state: o.state
+        });
+        console.log('✅ Purchase pixel fired! Value: ₹'+_ptotal);
+      }
+    }catch(pixelErr){ console.log('Pixel error:', pixelErr); }
     // ── Send Email to Customer ──
     sendConfirmationEmail(o, p);
-    // ── Meta Pixel Purchase Event (Full ecommerce data) ──
-    if(typeof fbq !== 'undefined'){
-      fbq('track', 'Purchase', {
-        value: p.price * qty,
-        currency: 'INR',
-        content_name: p.name,
-        content_ids: [curP],
-        content_type: 'product',
-        num_items: qty,
-        order_id: oid
-      });
-      // Custom: COD Order placed
-      fbq('trackCustom', 'CODOrderPlaced', {
-        order_id: oid,
-        product: p.name,
-        value: p.price * qty,
-        currency: 'INR',
-        city: o.city,
-        state: o.state
-      });
-    }
     document.getElementById('sOid').textContent=oid;
     document.getElementById('sSumm').innerHTML=
       '<strong>Product:</strong> '+p.name+' ('+p.size+') × '+qty+'<br/>'+
