@@ -331,10 +331,16 @@ body{font-family:'DM Sans',sans-serif;background:#f0ebe2;color:var(--txt);min-he
 <!-- PASSWORD CHANGE MODAL -->
 <div class="ov" id="pwdOv">
   <div class="pwd-modal">
-    <h2 class="pwd-ttl">🔑 Change Password</h2>
-    <p class="pwd-sub">Naya password set karein — login ke liye use hoga</p>
+    <h2 class="pwd-ttl">🔑 Change Credentials</h2>
+    <p class="pwd-sub">Username aur password update karein</p>
     <div class="pwd-fg">
-      <label>Current Password</label>
+      <label>New Username</label>
+      <div class="pwd-input-wrap">
+        <input type="text" id="pwdUser" placeholder="Naya username (blank = no change)" autocomplete="off" style="padding:11px 14px;border:1.5px solid var(--bdr);border-radius:11px;font-size:14px;font-family:'DM Sans',sans-serif;width:100%;outline:none;background:var(--cream);transition:border-color .2s;"/>
+      </div>
+    </div>
+    <div class="pwd-fg">
+      <label>Current Password *</label>
       <div class="pwd-input-wrap">
         <input type="password" id="pwdCurrent" placeholder="Current password"/>
         <button class="pwd-eye" onclick="togglePw('pwdCurrent','eye2')" id="eye2">👁</button>
@@ -427,9 +433,11 @@ function logout(){
 
 // ── PASSWORD CHANGE ──
 function openPwdModal(){
+  document.getElementById('pwdUser').value='';
   document.getElementById('pwdCurrent').value='';
   document.getElementById('pwdNew').value='';
   document.getElementById('pwdConfirm').value='';
+  ['pwdUser','pwdCurrent','pwdNew','pwdConfirm'].forEach(id=>document.getElementById(id).classList.remove('err'));
   document.getElementById('pwdMsg').className='pwd-msg';
   document.getElementById('pwdMsg').textContent='';
   document.getElementById('pwdOv').classList.add('on');
@@ -438,12 +446,14 @@ function closePwdModal(){
   document.getElementById('pwdOv').classList.remove('on');
 }
 function changePassword(){
+  const newUser=document.getElementById('pwdUser').value.trim();
   const curr=document.getElementById('pwdCurrent').value;
   const nw=document.getElementById('pwdNew').value;
   const conf=document.getElementById('pwdConfirm').value;
   const msg=document.getElementById('pwdMsg');
   const creds=getCreds();
 
+  // Must enter current password to make any change
   if(curr!==creds.pass){
     msg.className='pwd-msg err';
     msg.textContent='❌ Current password galat hai!';
@@ -452,23 +462,49 @@ function changePassword(){
   }
   document.getElementById('pwdCurrent').classList.remove('err');
 
-  if(nw.length < 6){
+  // Validate new username if provided
+  if(newUser.length>0 && newUser.length<3){
     msg.className='pwd-msg err';
-    msg.textContent='❌ Password kam se kam 6 characters ka hona chahiye!';
+    msg.textContent='❌ Username kam se kam 3 characters ka hona chahiye!';
+    document.getElementById('pwdUser').classList.add('err');
     return;
   }
-  if(nw!==conf){
-    msg.className='pwd-msg err';
-    msg.textContent='❌ New passwords match nahi kar rahe!';
-    document.getElementById('pwdConfirm').classList.add('err');
-    return;
-  }
-  document.getElementById('pwdConfirm').classList.remove('err');
+  document.getElementById('pwdUser').classList.remove('err');
 
-  localStorage.setItem('ic_admin_pass', nw);
+  // New password is optional — only validate if filled
+  if(nw.length>0){
+    if(nw.length<6){
+      msg.className='pwd-msg err';
+      msg.textContent='❌ Password kam se kam 6 characters ka hona chahiye!';
+      return;
+    }
+    if(nw!==conf){
+      msg.className='pwd-msg err';
+      msg.textContent='❌ New passwords match nahi kar rahe!';
+      document.getElementById('pwdConfirm').classList.add('err');
+      return;
+    }
+    document.getElementById('pwdConfirm').classList.remove('err');
+  }
+
+  // Must change at least one thing
+  if(newUser.length===0 && nw.length===0){
+    msg.className='pwd-msg err';
+    msg.textContent='❌ Kuch toh change karein — username ya password!';
+    return;
+  }
+
+  // Save changes
+  if(newUser.length>0) localStorage.setItem('ic_admin_user', newUser);
+  if(nw.length>0) localStorage.setItem('ic_admin_pass', nw);
+
+  const changed=[];
+  if(newUser.length>0) changed.push('Username → '+newUser);
+  if(nw.length>0) changed.push('Password updated');
+
   msg.className='pwd-msg ok';
-  msg.textContent='✅ Password successfully change ho gaya!';
-  setTimeout(()=>closePwdModal(), 1500);
+  msg.textContent='✅ '+changed.join(' | ')+' — Successfully saved!';
+  setTimeout(()=>closePwdModal(), 1800);
 }
 
 // ── DATA ──
