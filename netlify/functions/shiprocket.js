@@ -25,7 +25,7 @@ exports.handler = async function(event, context) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'query.indiancare@gmail.com',
+        email: 'gopal.wwani5@gmail.com',
         password: 'D!8Nkb*Ao7lb2*i5rvTQqbMR*TBQL%K*'
       })
     });
