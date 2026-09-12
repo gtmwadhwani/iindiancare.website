@@ -198,6 +198,19 @@ body{font-family:'DM Sans',sans-serif;background:#f0ebe2;color:var(--txt);min-he
 .inv-sign-line{border-top:1px solid #333;width:40mm;margin-left:auto;margin-bottom:1.5mm;}
 .inv-sign-lbl{font-size:7.5pt;color:#555;}
 .inv-cod-badge{display:inline-block;background:#FFF0E0;border:1.5px solid #E8A055;border-radius:2mm;padding:2mm 4mm;font-size:9pt;font-weight:800;color:#8B4000;margin-top:3mm;}
+.btn-ship{background:#6a1fa8;color:white;}
+.ship-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:18px;margin-top:4px;}
+.ship-pending{background:#f3e8fd;color:#6a1fa8;}
+.ship-done{background:#e8f5e9;color:#2e7d32;}
+.ship-loading{background:#fff3e0;color:#e65100;}
+.om-btn-ship{background:linear-gradient(135deg,#6a1fa8,#9c27b0);color:white;}
+.ship-result{background:#f3e8fd;border-radius:12px;padding:14px;margin-top:12px;font-size:13px;display:none;}
+.ship-result.on{display:block;}
+.ship-result-t{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6a1fa8;margin-bottom:8px;}
+.ship-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(106,31,168,0.1);}
+.ship-row:last-child{border-bottom:none;}
+.ship-row-l{font-size:12px;color:#888;}
+.ship-row-v{font-size:12px;font-weight:600;color:#2A1800;}
 </style>
 </head>
 <body>
@@ -321,8 +334,13 @@ body{font-family:'DM Sans',sans-serif;background:#f0ebe2;color:var(--txt);min-he
       </div>
       <div class="om-btns">
         <button class="om-btn om-btn-save" onclick="saveStatus()">💾 Save Status</button>
+        <button class="om-btn om-btn-ship" onclick="shipCurrentOrder(this)" id="omShipBtn">🚀 Ship via Shiprocket</button>
         <button class="om-btn om-btn-label" onclick="printLabelFor()">🖨️ Shipping Label</button>
         <button class="om-btn om-btn-bill" onclick="printBillFor()">🧾 Print Invoice</button>
+      </div>
+      <div class="ship-result" id="omShipResult">
+        <div class="ship-result-t">🚀 Shiprocket Response</div>
+        <div id="omShipResultBody"></div>
       </div>
     </div>
   </div>
@@ -580,12 +598,13 @@ function loadOrders(){
       <td><strong>${o.qty||1}</strong></td>
       <td><strong style="color:var(--br)">₹${(o.total||0).toLocaleString('en-IN')}</strong></td>
       <td style="font-size:12px">${o.city||'—'}<br/><span style="color:var(--mt)">${o.state||''}</span></td>
-      <td><span class="status-chip s-${st}">${st}</span></td>
+      <td><span class="status-chip s-${st}">${st}</span>${o.awb_code?'<div style="font-size:10px;color:#6a1fa8;margin-top:3px;">AWB: '+o.awb_code+'</div>':''}</td>
       <td><div class="action-btns">
         <button class="act-btn btn-view" onclick="viewOrder(${i})">View</button>
         <button class="act-btn btn-label" onclick="doPrintLabel(${i})">🖨️ Label</button>
         <button class="act-btn btn-bill" onclick="doPrintBill(${i})">🧾 Bill</button>
         <button class="act-btn btn-qs" onclick="quickStatus(${i})">▶ Next</button>
+        <button class="act-btn btn-ship" onclick="shipOrder(${i}, this)">🚀 Ship</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -607,6 +626,12 @@ function viewOrder(i){
   if(o.notes){document.getElementById('omNotesWrap').style.display='block';document.getElementById('omNotes').textContent=o.notes;}
   else document.getElementById('omNotesWrap').style.display='none';
   document.getElementById('omStatus').value=o.status||'New';
+  // Reset ship result
+  document.getElementById('omShipResult').classList.remove('on');
+  document.getElementById('omShipResultBody').innerHTML='';
+  const shipBtn=document.getElementById('omShipBtn');
+  if(o.shiprocket_id){shipBtn.textContent='✅ Already Shipped';shipBtn.style.background='#2e7d32';}
+  else{shipBtn.textContent='🚀 Ship via Shiprocket';shipBtn.style.background='';shipBtn.disabled=false;}
   document.getElementById('ov').classList.add('on');
 }
 function closeOModal(){document.getElementById('ov').classList.remove('on');}
@@ -694,6 +719,117 @@ function exportCSV(){
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='IndianCare_Orders_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
+}
+
+// ── SHIPROCKET INTEGRATION ──
+const SHIPROCKET_FN = '/.netlify/functions/shiprocket';
+
+async function callShiprocket(action, orderData) {
+  const res = await fetch(SHIPROCKET_FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, orderData })
+  });
+  return await res.json();
+}
+
+async function shipOrder(i, btn) {
+  const o = window._filteredOrders[i];
+  if(o.shiprocket_id) {
+    alert('Yeh order already ship ho chuka hai!\nShiprocket Order ID: ' + o.shiprocket_id + '\nAWB: ' + (o.awb_code || 'Pending'));
+    return;
+  }
+  const confirm_ship = confirm('Order ship karein Shiprocket se?\n\n' + o.name + '\n' + o.product + ' × ' + o.qty + '\n₹' + o.total + ' (COD)');
+  if(!confirm_ship) return;
+
+  btn.textContent = '⏳ Shipping...';
+  btn.disabled = true;
+
+  try {
+    const result = await callShiprocket('create_order', o);
+    if(result.success) {
+      // Save shiprocket details to order
+      const all = getOrders();
+      const idx = all.findIndex(a => a.id === o.id);
+      if(idx > -1) {
+        all[idx].shiprocket_id = result.shiprocket_order_id;
+        all[idx].shipment_id = result.shipment_id;
+        all[idx].awb_code = result.awb_code;
+        all[idx].courier_name = result.courier_name;
+        all[idx].status = 'Shipped';
+        saveOrders(all);
+      }
+      btn.textContent = '✅ Shipped!';
+      btn.style.background = '#2e7d32';
+      loadOrders();
+      alert('✅ Order successfully shipped!\n\nShiprocket Order ID: ' + result.shiprocket_order_id + '\nAWB: ' + (result.awb_code || 'Assigning...') + '\nCourier: ' + (result.courier_name || 'Assigning...'));
+    } else {
+      btn.textContent = '❌ Failed';
+      btn.disabled = false;
+      alert('Error: ' + JSON.stringify(result.error || result));
+    }
+  } catch(err) {
+    btn.textContent = '🚀 Ship';
+    btn.disabled = false;
+    alert('Network error: ' + err.message);
+  }
+}
+
+async function shipCurrentOrder(btn) {
+  if(!currentOrder) return;
+  if(currentOrder.shiprocket_id) {
+    const res = document.getElementById('omShipResult');
+    const body = document.getElementById('omShipResultBody');
+    res.classList.add('on');
+    body.innerHTML = `
+      <div class="ship-row"><span class="ship-row-l">Shiprocket ID</span><span class="ship-row-v">${currentOrder.shiprocket_id}</span></div>
+      <div class="ship-row"><span class="ship-row-l">AWB Number</span><span class="ship-row-v">${currentOrder.awb_code || 'Assigning...'}</span></div>
+      <div class="ship-row"><span class="ship-row-l">Courier</span><span class="ship-row-v">${currentOrder.courier_name || 'Assigning...'}</span></div>
+      <div class="ship-row"><span class="ship-row-l">Status</span><span class="ship-row-v" style="color:#2e7d32">Already Shipped ✅</span></div>`;
+    return;
+  }
+
+  btn.textContent = '⏳ Shipping...';
+  btn.disabled = true;
+
+  try {
+    const result = await callShiprocket('create_order', currentOrder);
+    const res = document.getElementById('omShipResult');
+    const body = document.getElementById('omShipResultBody');
+    res.classList.add('on');
+
+    if(result.success) {
+      const all = getOrders();
+      const idx = all.findIndex(a => a.id === currentOrder.id);
+      if(idx > -1) {
+        all[idx].shiprocket_id = result.shiprocket_order_id;
+        all[idx].shipment_id = result.shipment_id;
+        all[idx].awb_code = result.awb_code;
+        all[idx].courier_name = result.courier_name;
+        all[idx].status = 'Shipped';
+        saveOrders(all);
+        currentOrder = all[idx];
+      }
+      btn.textContent = '✅ Shipped!';
+      btn.style.background = '#2e7d32';
+      body.innerHTML = `
+        <div class="ship-row"><span class="ship-row-l">Shiprocket Order ID</span><span class="ship-row-v">${result.shiprocket_order_id || '—'}</span></div>
+        <div class="ship-row"><span class="ship-row-l">Shipment ID</span><span class="ship-row-v">${result.shipment_id || '—'}</span></div>
+        <div class="ship-row"><span class="ship-row-l">AWB Number</span><span class="ship-row-v">${result.awb_code || 'Assigning...'}</span></div>
+        <div class="ship-row"><span class="ship-row-l">Courier</span><span class="ship-row-v">${result.courier_name || 'Assigning...'}</span></div>
+        <div class="ship-row"><span class="ship-row-l">Status</span><span class="ship-row-v" style="color:#2e7d32">✅ Successfully Shipped!</span></div>`;
+      loadOrders();
+    } else {
+      btn.textContent = '🚀 Ship via Shiprocket';
+      btn.disabled = false;
+      body.innerHTML = '<div style="color:#c62828">❌ Error: ' + JSON.stringify(result.error || result) + '</div>';
+    }
+  } catch(err) {
+    btn.textContent = '🚀 Ship via Shiprocket';
+    btn.disabled = false;
+    document.getElementById('omShipResult').classList.add('on');
+    document.getElementById('omShipResultBody').innerHTML = '<div style="color:#c62828">❌ Network Error: ' + err.message + '</div>';
+  }
 }
 
 setInterval(()=>{if(document.getElementById('adminWrap').classList.contains('on'))loadOrders();},30000);
