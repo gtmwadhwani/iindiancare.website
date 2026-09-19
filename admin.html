@@ -199,6 +199,17 @@ body{font-family:'DM Sans',sans-serif;background:#f0ebe2;color:var(--txt);min-he
 .inv-sign-lbl{font-size:7.5pt;color:#555;}
 .inv-cod-badge{display:inline-block;background:#FFF0E0;border:1.5px solid #E8A055;border-radius:2mm;padding:2mm 4mm;font-size:9pt;font-weight:800;color:#8B4000;margin-top:3mm;}
 .btn-ship{background:#6a1fa8;color:white;}
+.pay-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;margin-top:3px;}
+.pay-online{background:#e8f5e9;color:#2e7d32;}
+.pay-cod{background:#fff3e0;color:#e65100;}
+.pay-id{font-size:10px;color:#6a1fa8;font-family:monospace;margin-top:2px;word-break:break-all;}
+.ship-error-box{background:#ffebee;border:1px solid #ef9a9a;border-radius:12px;padding:14px;margin-top:12px;font-size:12.5px;color:#c62828;line-height:1.7;display:none;}
+.ship-error-box.on{display:block;}
+.ship-error-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#c62828;margin-bottom:8px;}
+.ship-error-row{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid rgba(198,40,40,0.1);}
+.ship-error-row:last-child{border-bottom:none;}
+.ship-error-key{font-size:11.5px;color:#888;min-width:110px;}
+.ship-error-val{font-size:11.5px;font-weight:600;color:#c62828;}
 .ship-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:18px;margin-top:4px;}
 .ship-pending{background:#f3e8fd;color:#6a1fa8;}
 .ship-done{background:#e8f5e9;color:#2e7d32;}
@@ -312,6 +323,19 @@ body{font-family:'DM Sans',sans-serif;background:#f0ebe2;color:var(--txt);min-he
           <div class="om-field"><div class="om-field-l">Mobile</div><div class="om-field-v" id="omPhone"></div></div>
           <div class="om-field"><div class="om-field-l">Email</div><div class="om-field-v" id="omEmail"></div></div>
           <div class="om-field"><div class="om-field-l">Order Date</div><div class="om-field-v" id="omDate"></div></div>
+        </div>
+      </div>
+      <div class="om-sect" id="omPaySection">
+        <div class="om-sect-t">Payment Details</div>
+        <div class="om-grid">
+          <div class="om-field"><div class="om-field-l">Payment Mode</div><div class="om-field-v" id="omPayMode">—</div></div>
+          <div class="om-field"><div class="om-field-l">Amount Paid</div><div class="om-field-v" id="omPayAmt">—</div></div>
+        </div>
+        <div class="om-field" style="margin-top:10px;border-radius:10px;" id="omPayIdWrap">
+          <div class="om-field-l">Razorpay Payment ID</div>
+          <div class="om-field-v pay-id" id="omPayId">—</div>
+          <div class="om-field-l" style="margin-top:8px;">Razorpay Order ID</div>
+          <div class="om-field-v pay-id" id="omRzpOrderId">—</div>
         </div>
       </div>
       <div class="om-sect">
@@ -598,7 +622,11 @@ function loadOrders(){
       <td><strong>${o.qty||1}</strong></td>
       <td><strong style="color:var(--br)">₹${(o.total||0).toLocaleString('en-IN')}</strong></td>
       <td style="font-size:12px">${o.city||'—'}<br/><span style="color:var(--mt)">${o.state||''}</span></td>
-      <td><span class="status-chip s-${st}">${st}</span>${o.awb_code?'<div style="font-size:10px;color:#6a1fa8;margin-top:3px;">AWB: '+o.awb_code+'</div>':''}</td>
+      <td>
+        <span class="status-chip s-${st}">${st}</span>
+        ${o.awb_code?'<div style="font-size:10px;color:#6a1fa8;margin-top:3px;">AWB: '+o.awb_code+'</div>':''}
+        ${o.razorpay_payment_id?'<div class="pay-badge pay-online">✅ Paid Online</div>':'<div class="pay-badge pay-cod">💵 COD</div>'}
+      </td>
       <td><div class="action-btns">
         <button class="act-btn btn-view" onclick="viewOrder(${i})">View</button>
         <button class="act-btn btn-label" onclick="doPrintLabel(${i})">🖨️ Label</button>
@@ -626,6 +654,16 @@ function viewOrder(i){
   if(o.notes){document.getElementById('omNotesWrap').style.display='block';document.getElementById('omNotes').textContent=o.notes;}
   else document.getElementById('omNotesWrap').style.display='none';
   document.getElementById('omStatus').value=o.status||'New';
+  // Payment details
+  document.getElementById('omPayMode').textContent = o.razorpay_payment_id ? '✅ Online (Razorpay)' : '💵 Cash on Delivery';
+  document.getElementById('omPayAmt').textContent = '₹' + (o.total||0).toLocaleString('en-IN');
+  if(o.razorpay_payment_id){
+    document.getElementById('omPayId').textContent = o.razorpay_payment_id;
+    document.getElementById('omRzpOrderId').textContent = o.razorpay_order_id || '—';
+    document.getElementById('omPayIdWrap').style.display = 'block';
+  } else {
+    document.getElementById('omPayIdWrap').style.display = 'none';
+  }
   // Reset ship result
   document.getElementById('omShipResult').classList.remove('on');
   document.getElementById('omShipResultBody').innerHTML='';
@@ -764,9 +802,15 @@ async function shipOrder(i, btn) {
       loadOrders();
       alert('✅ Order successfully shipped!\n\nShiprocket Order ID: ' + result.shiprocket_order_id + '\nAWB: ' + (result.awb_code || 'Assigning...') + '\nCourier: ' + (result.courier_name || 'Assigning...'));
     } else {
-      btn.textContent = '❌ Failed';
+      btn.textContent = '❌ Failed - View Details';
       btn.disabled = false;
-      alert('Error: ' + JSON.stringify(result.error || result));
+      const e = result;
+      let msg = 'Shiprocket Error:\n';
+      if(e.error) msg += 'Error: ' + e.error + '\n';
+      if(e.message) msg += 'Message: ' + e.message + '\n';
+      if(e.email_used) msg += 'Email: ' + e.email_used + '\n';
+      if(e.shiprocket_response) msg += 'SR: ' + JSON.stringify(e.shiprocket_response).substring(0,150);
+      alert(msg);
     }
   } catch(err) {
     btn.textContent = '🚀 Ship';
@@ -822,7 +866,14 @@ async function shipCurrentOrder(btn) {
     } else {
       btn.textContent = '🚀 Ship via Shiprocket';
       btn.disabled = false;
-      body.innerHTML = '<div style="color:#c62828">❌ Error: ' + JSON.stringify(result.error || result) + '</div>';
+      const errData = result;
+      let errHtml = '<div class="ship-error-title">❌ Shiprocket Error Details</div>';
+      if(errData.error) errHtml += '<div class="ship-error-row"><span class="ship-error-key">Error</span><span class="ship-error-val">'+errData.error+'</span></div>';
+      if(errData.message) errHtml += '<div class="ship-error-row"><span class="ship-error-key">Message</span><span class="ship-error-val">'+errData.message+'</span></div>';
+      if(errData.email_used) errHtml += '<div class="ship-error-row"><span class="ship-error-key">Email Used</span><span class="ship-error-val">'+errData.email_used+'</span></div>';
+      if(errData.shiprocket_response) errHtml += '<div class="ship-error-row"><span class="ship-error-key">SR Response</span><span class="ship-error-val">'+JSON.stringify(errData.shiprocket_response).substring(0,200)+'</span></div>';
+      if(errData.raw) errHtml += '<div class="ship-error-row"><span class="ship-error-key">Raw Response</span><span class="ship-error-val">'+errData.raw.substring(0,200)+'</span></div>';
+      body.innerHTML = errHtml;
     }
   } catch(err) {
     btn.textContent = '🚀 Ship via Shiprocket';
