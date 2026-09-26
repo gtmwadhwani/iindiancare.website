@@ -19,9 +19,8 @@ exports.handler = async function(event, context) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing required fields' }) };
     }
 
-    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 's44cv3G07Z3FAHWXwhhwjipS';
+    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'R5MaLPvH1QaR6pl3jaaH4k2p';
 
-    // HMAC-SHA256 verification
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const generated_signature = crypto
       .createHmac('sha256', KEY_SECRET)
@@ -41,7 +40,7 @@ exports.handler = async function(event, context) {
     } else {
       return {
         statusCode: 400, headers,
-        body: JSON.stringify({ success: false, error: 'Signature mismatch — payment not verified' })
+        body: JSON.stringify({ success: false, error: 'Signature mismatch - payment not verified' })
       };
     }
 
