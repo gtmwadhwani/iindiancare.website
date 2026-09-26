@@ -15,13 +15,12 @@ exports.handler = async function(event, context) {
   try {
     const { amount, currency, receipt, notes } = JSON.parse(event.body);
 
-    // Validate amount (min 100 paise = Re 1)
     if(!amount || amount < 100) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Amount must be at least 100 paise (₹1)' }) };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Amount must be at least 100 paise (Rs.1)' }) };
     }
 
-    const KEY_ID     = process.env.RAZORPAY_KEY_ID     || 'rzp_test_TdmUPiihRAVeBD';
-    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET  || 's44cv3G07Z3FAHWXwhhwjipS';
+    const KEY_ID     = process.env.RAZORPAY_KEY_ID     || 'rzp_test_TgHMX8bflmaW2A';
+    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET  || 'R5MaLPvH1QaR6pl3jaaH4k2p';
 
     const auth = Buffer.from(`${KEY_ID}:${KEY_SECRET}`).toString('base64');
 
