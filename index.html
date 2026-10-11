@@ -639,9 +639,10 @@ function initBanners(){
     var sh = '', dh = '';
     for(var i=0; i<filtered.length; i++){
       var b = filtered[i];
-      var ca = b.link ? ' onclick="window.location.href='' + b.link + ''"' : '';
+      var ca = b.link ? (' onclick="goToBannerLink(' + i + ')"') : '';
       var ta = b.title ? '<div class="banner-slide-title">' + b.title + '</div>' : '';
-      sh += '<div class="banner-slide"' + ca + '><img src="' + b.img + '" alt="banner" onerror="this.parentElement.style.display='none'"/>' + ta + '</div>';
+      var slideEl = '<div class="banner-slide"' + ca + '><img src="' + b.img + '" alt="banner" class="banner-img-' + i + '"/>' + ta + '</div>';
+      sh += slideEl;
       dh += '<div class="banner-dot' + (i===0 ? ' active' : '') + '" onclick="bannerGoTo(' + i + ')"></div>';
     }
     trk.innerHTML = sh;
@@ -655,6 +656,14 @@ function bannerMove(dir){
   if(!slides.length) return;
   _bannerIdx = (_bannerIdx + dir + slides.length) % slides.length;
   bannerGoTo(_bannerIdx);
+}
+function goToBannerLink(i){
+  try {
+    var stored = localStorage.getItem('ic_banners');
+    var banners = stored ? JSON.parse(stored) : [];
+    var filtered = banners.filter(function(b){ return b.img; });
+    if(filtered[i] && filtered[i].link) window.location.href = filtered[i].link;
+  } catch(e){}
 }
 function bannerGoTo(idx){
   _bannerIdx = idx;
